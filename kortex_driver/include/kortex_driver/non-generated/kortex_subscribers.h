@@ -28,7 +28,7 @@ class KortexSubscribers
 {
 
 public:
-    
+
     KortexSubscribers(ros::NodeHandle& node_handle, Kinova::Api::Base::BaseClient* base);
     ~KortexSubscribers();
 
@@ -44,12 +44,19 @@ private:
     ros::Subscriber m_stop_sub;
     ros::Subscriber m_emergency_stop_sub;
 
+    //Command velocity timeout timer;
+    ros::Timer m_timer;
+    ros::Time m_last_cmd_vel_time;
+    bool m_commanding_vel;
+    float m_cmd_vel_timeout;
+
     // Callbacks
     void new_joint_speeds_cb(const kortex_driver::JointSpeeds& joint_speeds);
     void new_twist_cb(const kortex_driver::TwistCommand& twist);
     void clear_faults_cb(const std_msgs::Empty& empty);
     void stop_cb(const std_msgs::Empty& empty);
     void emergency_stop_cb(const std_msgs::Empty& empty);
+    void timer_cb(const ros::TimerEvent& event);
 };
 
 #endif //_KORTEX_SUBSCRIBERS_H_

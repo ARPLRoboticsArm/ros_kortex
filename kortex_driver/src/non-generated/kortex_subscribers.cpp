@@ -22,10 +22,28 @@ m_node_handle(node_handle), m_base(base)
     m_clear_faults_sub = m_node_handle.subscribe("in/clear_faults", 1, &KortexSubscribers::clear_faults_cb, this);
     m_stop_sub = m_node_handle.subscribe("in/stop", 1, &KortexSubscribers::stop_cb, this);
     m_emergency_stop_sub = m_node_handle.subscribe("in/emergency_stop", 1, &KortexSubscribers::emergency_stop_cb, this);
+
+    m_node_handle.param("vel_cmd_timeout", m_cmd_vel_timeout, 0.1f);
+    m_commanding_vel = false;
+    m_timer = m_node_handle.createTimer(ros::Duration(m_cmd_vel_timeout/2.0), &KortexSubscribers::timer_cb, this);
 }
 
 KortexSubscribers::~KortexSubscribers()
 {
+}
+
+void KortexSubscribers::timer_cb(const ros::TimerEvent& event)
+{
+    if(m_commanding_vel)
+    {
+        if((ros::Time::now() - m_last_cmd_vel_time).toSec() > m_cmd_vel_timeout)
+        {
+            std_msgs::Empty em;
+            stop_cb(em);
+            m_commanding_vel = false;
+            ROS_WARN("Command velocity timeout, stopping");
+        }
+    }
 }
 
 void KortexSubscribers::new_joint_speeds_cb(const kortex_driver::JointSpeeds& joint_speeds)
@@ -42,6 +60,8 @@ void KortexSubscribers::new_joint_speeds_cb(const kortex_driver::JointSpeeds& jo
 
     try
     {
+        m_commanding_vel = true;
+        m_last_cmd_vel_time = ros::Time::now();
         m_base->SendJointSpeedsCommand(speeds);
     }
     catch (Kinova::Api::KDetailedException& ex)
@@ -70,6 +90,8 @@ void KortexSubscribers::new_twist_cb(const kortex_driver::TwistCommand& twist)
 
     try
     {
+        m_commanding_vel = true;
+        m_last_cmd_vel_time = ros::Time::now();
         m_base->SendTwistCommand(twist_command);
     }
     catch (Kinova::Api::KDetailedException& ex)
